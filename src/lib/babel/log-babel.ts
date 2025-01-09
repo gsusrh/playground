@@ -1,6 +1,3 @@
-// Changes all instances of console.log to use the debug(line, param, ...params) function
-// https://babeljs.io/docs/en/babel-plugin-transform-remove-console/#usage
-
 import type { TraverseOptions, Node } from '@babel/traverse';
 
 export default function ({ types: t }: { types: any }): { visitor: TraverseOptions<Node> } {

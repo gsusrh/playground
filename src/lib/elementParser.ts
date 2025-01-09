@@ -1,5 +1,5 @@
 import jc from "json-cycle";
-import ObjetToString from "stringify-object";
+import ObjetToString from "safe-stable-stringify";
 
 export enum Colors {
   TRUE = "#1f924a",

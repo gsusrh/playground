@@ -1,19 +1,34 @@
-// /pages/playground.js
-import { useState, useRef } from 'react';
-import Head from 'next/head';
-import dynamic from 'next/dynamic';
+import { useState, useRef, useCallback, useEffect } from "react";
+import Head from "next/head";
+import dynamic from "next/dynamic";
+import debounce from "lodash.debounce";
 import { run, transformCode } from "../lib/code/run";
 
-const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
+const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
+  ssr: false,
+});
 
 function Playground() {
-  const [code, setCode] = useState('');
-  const [output, setOutput] = useState('');
+  const [code, setCode] = useState("");
+  const [output, setOutput] = useState([]);
   const monacoRef = useRef(null);
 
   function handleEditorDidMount(monaco) {
     monacoRef.current = monaco;
   }
+
+  const formatOutputForDisplay = useCallback((results) => {
+    if (!Array.isArray(results) || results.length === 0) return "";
+
+    return results
+      .map((result) => {
+        if (result.type === "error") {
+          return `${result.element.content}`;
+        }
+        return `${result.element.content}`;
+      })
+      .join("\n");
+  }, []);
 
   async function RunCode(e) {
     setOutput("");
@@ -30,70 +45,74 @@ function Playground() {
     setCode(e);
   }
 
+  // Crear versión debounced de RunCode
+  const debouncedRunCode = useCallback(
+
+    debounce((value) => {
+      RunCode(value);
+    }, 250)
+
+  ,[]);
+
+  // Limpiar el debounce cuando el componente se desmonte
+  useEffect(() => {
+    return () => {
+      debouncedRunCode.cancel();
+    };
+  }, [debouncedRunCode]);
+
+  // Función para manejar los cambios del editor
+  const handleEditorChange = useCallback((value) => {
+    setCode(value); // Actualizar el código inmediatamente
+    debouncedRunCode(value); // Ejecutar el código con debounce
+  }, [debouncedRunCode]);
+
   return (
     <>
       <Head>
         <title>JavaScript Playground</title>
       </Head>
 
-      <div className="min-h-screen bg-gray-900">
-        <nav className="bg-gray-800 p-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-white text-xl font-bold">JavaScript Playground</h1>
-            <button
-              onClick={RunCode}
-              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
-            >
-              Ejecutar (Ctrl + Enter)
-            </button>
-          </div>
-        </nav>
+      <div className="min-h-screen bg-black">
+        <div className="w-full h-screen flex">
+          <MonacoEditor
+            height="100%"
+            defaultLanguage="javascript"
+            theme="vs-dark"
+            value={code}
+            onChange={handleEditorChange} // Cambiar a handleEditorChange
+            onMount={handleEditorDidMount}
+            options={{
+              minimap: { enabled: false },
+              fontSize: 14,
+              lineNumbers: "on",
+              wordWrap: "on",
+              automaticLayout: true,
+              scrollBeyondLastLine: false,
+              tabSize: 2,
+              suggestOnTriggerCharacters: true,
+            }}
+          />
 
-        <div className="container mx-auto p-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Editor de entrada */}
-            <div className="bg-gray-800 rounded-lg overflow-hidden h-[600px]">
-              <MonacoEditor
-                height="100%"
-                defaultLanguage="javascript"
-                theme="vs-dark"
-                value={code}
-                onChange={RunCode}
-                onMount={handleEditorDidMount}
-                options={{
-                  minimap: { enabled: false },
-                  fontSize: 14,
-                  lineNumbers: 'on',
-                  wordWrap: 'on',
-                  automaticLayout: true,
-                  scrollBeyondLastLine: false,
-                  tabSize: 2,
-                  suggestOnTriggerCharacters: true,
-                }}
-              />
-            </div>
+          <div className="w-[4px] h-full bg-[#3b3b3b]"></div>
 
-            {/* Editor de salida */}
-            <div className="bg-gray-800 rounded-lg overflow-hidden h-[600px]">
-              {/* <MonacoEditor
-                height="100%"
-                defaultLanguage="javascript"
-                theme="vs-dark"
-                value={output}
-                options={{
-                  readOnly: true,
-                  minimap: { enabled: false },
-                  fontSize: 14,
-                  lineNumbers: 'off',
-                  wordWrap: 'on',
-                  automaticLayout: true,
-                  scrollBeyondLastLine: false,
-                  domReadOnly: true,
-                  contextmenu: false,
-                }}
-              /> */}
-            </div>
-          </div>
+          <MonacoEditor
+            height="100%"
+            defaultLanguage="javascript"
+            theme="vs-dark"
+            value={formatOutputForDisplay(output)}
+            options={{
+              readOnly: true,
+              minimap: { enabled: false },
+              fontSize: 14,
+              lineNumbers: "off",
+              wordWrap: "on",
+              automaticLayout: true,
+              scrollBeyondLastLine: false,
+              domReadOnly: true,
+              contextmenu: false,
+            }}
+          />
         </div>
       </div>
     </>
