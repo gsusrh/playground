@@ -1,46 +1,103 @@
-import { useState, useEffect } from "react";
-import { Editor } from "@monaco-editor/react";
+// /pages/playground.js
+import { useState, useRef } from 'react';
+import Head from 'next/head';
+import dynamic from 'next/dynamic';
+import { run, transformCode } from "../lib/code/run";
 
-export default function Runjs() {
-  const [code, setCode] = useState("// Escribe tu código aquí");
-  const [consoleOutput, setConsoleOutput] = useState("");
+const MonacoEditor = dynamic(() => import('@monaco-editor/react'), { ssr: false });
 
-  useEffect(() => {
-    const originalConsoleLog = console.log;
-    console.log = (message) => {
-      setConsoleOutput((prevOutput) => prevOutput + message + "\n");
-      originalConsoleLog(message);
-    };
-    
-    return () => {
-      console.log = originalConsoleLog;
-    };
-  }, []);
+function Playground() {
+  const [code, setCode] = useState('');
+  const [output, setOutput] = useState('');
+  const monacoRef = useRef(null);
 
-  const runCode = () => {
+  function handleEditorDidMount(monaco) {
+    monacoRef.current = monaco;
+  }
+
+  async function RunCode(e) {
+    setOutput("");
     try {
-      // Limpiar la consola antes de ejecutar
-      setConsoleOutput("");
-      eval(code);
-    } catch (error) {
-      console.error(error);
+      const tranformed = transformCode(e);
+
+      const element = await run(tranformed);
+
+      setOutput(element);
+    } catch (e) {
+      console.log(e);
+      setOutput([{ element: { content: e.message }, type: "error" }]);
     }
-  };
+    setCode(e);
+  }
 
   return (
-    <div className="w-full h-screen p-8">
-      <div className="flex flex-col h-full">
-        <Editor
-          height="70vh"
-          defaultLanguage="javascript"
-          defaultValue={code}
-          onChange={(value) => setCode(value)}
-        />
-        <button onClick={runCode} className="bg-blue-500 text-white p-2 mt-2">Ejecutar Código</button>
-        <div className="bg-black text-white p-2 mt-2 h-40 overflow-y-auto">
-          <pre>{consoleOutput}</pre>
+    <>
+      <Head>
+        <title>JavaScript Playground</title>
+      </Head>
+
+      <div className="min-h-screen bg-gray-900">
+        <nav className="bg-gray-800 p-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-white text-xl font-bold">JavaScript Playground</h1>
+            <button
+              onClick={RunCode}
+              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+            >
+              Ejecutar (Ctrl + Enter)
+            </button>
+          </div>
+        </nav>
+
+        <div className="container mx-auto p-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Editor de entrada */}
+            <div className="bg-gray-800 rounded-lg overflow-hidden h-[600px]">
+              <MonacoEditor
+                height="100%"
+                defaultLanguage="javascript"
+                theme="vs-dark"
+                value={code}
+                onChange={RunCode}
+                onMount={handleEditorDidMount}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  lineNumbers: 'on',
+                  wordWrap: 'on',
+                  automaticLayout: true,
+                  scrollBeyondLastLine: false,
+                  tabSize: 2,
+                  suggestOnTriggerCharacters: true,
+                }}
+              />
+            </div>
+
+            {/* Editor de salida */}
+            <div className="bg-gray-800 rounded-lg overflow-hidden h-[600px]">
+              {/* <MonacoEditor
+                height="100%"
+                defaultLanguage="javascript"
+                theme="vs-dark"
+                value={output}
+                options={{
+                  readOnly: true,
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  lineNumbers: 'off',
+                  wordWrap: 'on',
+                  automaticLayout: true,
+                  scrollBeyondLastLine: false,
+                  domReadOnly: true,
+                  contextmenu: false,
+                }}
+              /> */}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
+
+export default Playground;

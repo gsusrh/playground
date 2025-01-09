@@ -25,3 +25,7 @@ body {
     text-wrap: balance;
   }
 }
+
+.monaco-editor .readonly {
+  display: none !important;
+}
